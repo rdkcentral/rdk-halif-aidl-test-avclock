@@ -1279,18 +1279,20 @@ static bool isVideoSecureModeSupported(size_t clockIndex) {
 }
 
 static bool isAVClockTunnelModeSupported() {
-  std::vector<videodecoder::OperationalMode> supportedModes;
-  const android::binder::Status status =
-      gVideoDecoderManager->getSupportedOperationalModes(&supportedModes);
-
-  if (!status.isOk()) {
-    UT_LOG_WARNING("Unable to query platform tunnel-mode capability");
+  // IVideoDecoderManager::getSupportedOperationalModes() was removed in rdk-halif-aidl 0.23.0
+  // (operational mode is now vendor-selected). Use the modes declared in the VideoDecoder HFP profile.
+  if (gVideodecoders_hfp.empty() && vts_videodecoder_parseVideoDecoderHFP() != UT_STATUS_OK) {
+    UT_LOG_WARNING("Unable to parse VideoDecoder HFP for platform tunnel-mode capability");
     return false;
   }
 
-  return std::find(supportedModes.begin(), supportedModes.end(),
-                   videodecoder::OperationalMode::TUNNELLED) !=
-         supportedModes.end();
+  for (const auto &decoder : gVideodecoders_hfp) {
+    if (std::find(decoder.supportedOperationalModes.begin(), decoder.supportedOperationalModes.end(),
+                  OperationalMode::TUNNELLED) != decoder.supportedOperationalModes.end()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 void runAudioPrimeTest(std::shared_ptr<AVClockPrimeTest> clockTest,
