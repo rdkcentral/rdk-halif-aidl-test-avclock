@@ -87,6 +87,7 @@
 
 #include "vts_audiodecoder.h"
 #include "vts_audiodecoder_parse_testconfig.h"
+#include "vts_audiodecoder_test.h"
 #include "vts_audiosink_parse_hfp.h"
 #include "vts_videodecoder.h"
 #include "vts_audiosink.h"
@@ -627,13 +628,13 @@ void AVClockPrimeTest::validateClockTime(std::shared_ptr<AVClockPrimeTest>& cloc
            UT_LOG_ERROR("Audio config not available");
            UT_ASSERT_TRUE(false);
          } else {
-           FrameOutputMode outputMode = audDecCtrlListener->getFrameOutputMode();
+           /*FrameOutputMode outputMode = audDecCtrlListener->getFrameOutputMode();
            UT_LOG_INFO("Audio frame output mode: %d", static_cast<int>(outputMode));
            if((!(outputMode == FrameOutputMode::TUNNEL)) && (clockTest->getTunnelMode()))
            {
              UT_LOG_ERROR("Skipping Test: Audio frame output mode is not TUNNEL while tunnel mode is enabled");
              return;
-           }
+           }*/
          }
       }
       UT_LOG_ERROR("Timed out waiting for mOnPrimeEventAvailable");
@@ -922,7 +923,7 @@ bool PrimePhaseSynchronizer::isStreamActive(threadtype streamType) {
 void runAudioClockTest(std::shared_ptr<AVClockPrimeTest> clockTest,
                        const testConfiguration_t& testConfig, bool isSecure,
                        bool isTunnel, bool isConcurrentMode, contentprimetype primetype,
-                       sp<IAVClockController> &avClockController, FrameOutputMode& isAudioTunnelMode, bool& shouldSkipAudio) {
+                       sp<IAVClockController> &avClockController, /*FrameOutputMode& isAudioTunnelMode,*/ bool& shouldSkipAudio) {
   try {
     std::optional<AudioConfig> mAudioList;
 
@@ -1034,7 +1035,7 @@ void runAudioClockTest(std::shared_ptr<AVClockPrimeTest> clockTest,
 
       if (primeAudioThread.joinable()) {
 
-          if((isAudioTunnelMode == FrameOutputMode::UNKNOWN) && (isTunnel))
+          /*if((isAudioTunnelMode == FrameOutputMode::UNKNOWN) && (isTunnel))
           {
               FrameOutputMode outPutMode = mAudioList->decCtrlListener->getFrameOutputMode();
               UT_LOG_INFO("Detected frame output mode: %d", outPutMode);
@@ -1049,15 +1050,13 @@ void runAudioClockTest(std::shared_ptr<AVClockPrimeTest> clockTest,
                   UT_LOG_INFO("Detected non-tunnel mode for audio output");
                   shouldSkipAudio = true;
               }
-          }
+          }*/
 
-        UT_LOG_INFO("Before join mode=%d",
-            mAudioList->decCtrlListener->getFrameOutputMode());
+      //UT_LOG_INFO("Before join mode=%d", mAudioList->decCtrlListener->getFrameOutputMode());
 
         primeAudioThread.join();
 
-        UT_LOG_INFO("After join mode=%d",
-            mAudioList->decCtrlListener->getFrameOutputMode());
+        //UT_LOG_INFO("After join mode=%d", mAudioList->decCtrlListener->getFrameOutputMode());
       }
 
       UT_LOG_INFO("Audio Clock Test completed.");
@@ -1279,18 +1278,20 @@ static bool isVideoSecureModeSupported(size_t clockIndex) {
 }
 
 static bool isAVClockTunnelModeSupported() {
-  std::vector<videodecoder::OperationalMode> supportedModes;
-  const android::binder::Status status =
-      gVideoDecoderManager->getSupportedOperationalModes(&supportedModes);
-
-  if (!status.isOk()) {
-    UT_LOG_WARNING("Unable to query platform tunnel-mode capability");
+  // IVideoDecoderManager::getSupportedOperationalModes() was removed in rdk-halif-aidl 0.23.0
+  // (operational mode is now vendor-selected). Use the modes declared in the VideoDecoder HFP profile.
+  if (gVideodecoders_hfp.empty() && vts_videodecoder_parseVideoDecoderHFP() != UT_STATUS_OK) {
+    UT_LOG_WARNING("Unable to parse VideoDecoder HFP for platform tunnel-mode capability");
     return false;
   }
 
-  return std::find(supportedModes.begin(), supportedModes.end(),
-                   videodecoder::OperationalMode::TUNNELLED) !=
-         supportedModes.end();
+  for (const auto &decoder : gVideodecoders_hfp) {
+    if (std::find(decoder.supportedOperationalModes.begin(), decoder.supportedOperationalModes.end(),
+                  OperationalMode::TUNNELLED) != decoder.supportedOperationalModes.end()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 void runAudioPrimeTest(std::shared_ptr<AVClockPrimeTest> clockTest,
@@ -1309,7 +1310,7 @@ void runAudioPrimeTest(std::shared_ptr<AVClockPrimeTest> clockTest,
 
   vector<testConfiguration_t> testConfiguration;
   const char *DecodeStreams = "PrimeAudio";
-  FrameOutputMode isAudioTunnelMode = FrameOutputMode::UNKNOWN;
+  //FrameOutputMode isAudioTunnelMode = FrameOutputMode::UNKNOWN;
   bool shouldSkipAudio = false;
 
   vts_audiodecoder_parse_testconfig(gAudioPrimeTestConfiguration,
@@ -1325,7 +1326,7 @@ void runAudioPrimeTest(std::shared_ptr<AVClockPrimeTest> clockTest,
     phaseSynchronizer->beginConfiguration(threadtype::audio, primetype);
     std::thread audioclockthread([&, test = std::move(test)] {
       runAudioClockTest(clockTest, test, isSecureMode, isTunnel,
-                        isConcurrentMode, primetype, clockController, isAudioTunnelMode, shouldSkipAudio);
+                        isConcurrentMode, primetype, clockController, /*isAudioTunnelMode,*/ shouldSkipAudio);
     });
 
     // Join immediately after starting
