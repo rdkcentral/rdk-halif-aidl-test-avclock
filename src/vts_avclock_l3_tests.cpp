@@ -91,6 +91,7 @@
 #include "vts_audiosink_parse_hfp.h"
 #include "vts_videodecoder.h"
 #include "vts_audiosink.h"
+#include "vts_audiosink_test.h"
 
 #include "vts_audiosink_helper_functions.h"
 #include "vts_avbuffer.h"
@@ -664,9 +665,9 @@ void AVClockPrimeTest::runAudioTest(const AudioConfig& audioCfg,
 
     UT_LOG_INFO("AudioSink Thread about to start");
     AudioSinkTest sinkTest(
-        audioCfg.sinkId, audioCfg.sinkHandle, audioCfg.sinkCtrlListener,
+        audioCfg.sinkId, audioCfg.sinkHandle, audioCfg.decHandle, audioCfg.sinkCtrlListener,
         audioCfg.sinkEventListener, audioCfg.decCtrlListener, mBufferManager,
-        audioCfg.decId, mClockId, audioCfg.secureDecode, audioCfg.tunnelMode,
+        audioCfg.decId, mClockId, audioCfg.secureDecode,
         audioCfg.testConfig, isClockInUse);
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     std::thread sinkThread(&AudioSinkTest::run, &sinkTest);
