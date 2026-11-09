@@ -655,6 +655,7 @@ void AVClockPrimeTest::runAudioTest(const AudioConfig& audioCfg,
 
     bool isAudioSinkAttached = (audioCfg.sinkHandle != nullptr);
     bool isClockInUse = true;
+    bool isMixerConnected = true;
 
     UT_LOG_INFO("AudioDecoder Thread about to start");
     AudioDecoderTest decodeTest(
@@ -668,7 +669,7 @@ void AVClockPrimeTest::runAudioTest(const AudioConfig& audioCfg,
         audioCfg.sinkId, audioCfg.sinkHandle, audioCfg.decHandle, audioCfg.sinkCtrlListener,
         audioCfg.sinkEventListener, audioCfg.decCtrlListener, mBufferManager,
         audioCfg.decId, mClockId, audioCfg.secureDecode,
-        audioCfg.testConfig, isClockInUse);
+        audioCfg.testConfig, isClockInUse, isMixerConnected);
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     std::thread sinkThread(&AudioSinkTest::run, &sinkTest);
 
