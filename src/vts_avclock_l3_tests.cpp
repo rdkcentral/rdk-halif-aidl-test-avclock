@@ -1279,23 +1279,6 @@ static bool isVideoSecureModeSupported(size_t clockIndex) {
          std::get<4>(*decoder)->supportsSecure;
 }
 
-static bool isAVClockTunnelModeSupported() {
-  // IVideoDecoderManager::getSupportedOperationalModes() was removed in rdk-halif-aidl 0.23.0
-  // (operational mode is now vendor-selected). Use the modes declared in the VideoDecoder HFP profile.
-  if (gVideodecoders_hfp.empty() && vts_videodecoder_parseVideoDecoderHFP() != UT_STATUS_OK) {
-    UT_LOG_WARNING("Unable to parse VideoDecoder HFP for platform tunnel-mode capability");
-    return false;
-  }
-
-  for (const auto &decoder : gVideodecoders_hfp) {
-    if (std::find(decoder.supportedOperationalModes.begin(), decoder.supportedOperationalModes.end(),
-                  OperationalMode::TUNNELLED) != decoder.supportedOperationalModes.end()) {
-      return true;
-    }
-  }
-  return false;
-}
-
 void runAudioPrimeTest(std::shared_ptr<AVClockPrimeTest> clockTest,
                        bool isSecureMode, bool isTunnel, bool isConcurrentMode,
                        contentprimetype primetype, android::sp<IAVClockController> &clockController,
@@ -1401,12 +1384,12 @@ void runPcrPrimeTest(std::shared_ptr<AVClockPrimeTest> clockTest, bool isSecureM
                        !isVideoSecureModeSupported(clockIndex))) {
     UT_IGNORE_TEST() << "Skipping PCR prime case: AVClock instance " << clockIndex
                  << " does not support secure audio and video decoding";
+    // Withdraw from the start barrier so the audio/video participants are not left waiting
+    phaseSynchronizer->drop(threadtype::pcr);
     return;
   }
-  if (isTunnel && !isAVClockTunnelModeSupported()) {
-    UT_IGNORE_TEST() << "Skipping PCR prime case: platform does not support tunnel mode";
-    return;
-  }
+  // rdk-halif-aidl 0.23.0: the operational mode is vendor-selected and not declared in the HFP,
+  // so tunnel PCR cases are not gated on a platform capability any more.
 
   std::vector<int64_t> pcrValues;
   const char *ParsePCR = "ParsePCR";
