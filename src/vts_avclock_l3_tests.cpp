@@ -708,18 +708,20 @@ void AVClockPrimeTest::runVideoTest(const VideoConfig& videoCfg,
     videoDecoderTest decodeTest(
         videoCfg.decId, videoCfg.decHandle, videoCfg.decCtrlListener,
         videoCfg.decEventListener, mBufferManager, videoCfg.secureDecode,
-        videoCfg.tunnelMode, videoCfg.decTestConfig, mBufferHelper,
-        isVideoSinkAttached);
+        videoCfg.decTestConfig, mBufferHelper, isVideoSinkAttached);
     std::thread decodeThread(&videoDecoderTest::run, &decodeTest, true);
 
     UT_LOG_INFO("VideoSink Thread about to start");
-    VideoSinkTest sinkTest(videoCfg.sinkId, videoCfg.sinkHandle,
+    VideoSinkTest sinkTest(videoCfg.sinkId, videoCfg.sinkHandle, videoCfg.decHandle,
                  videoCfg.sinkCtrlListener,
                  videoCfg.sinkEventListener,
                  videoCfg.decCtrlListener, mBufferManager,
                  videoCfg.decId, mClockId, videoCfg.sinkTestConfig, isClockInUse);
+    // rdk-halif-aidl 0.23.0: no video plane is mapped, so no first frame rendered is expected
+    sinkTest.setFirstFrameRenderedExpected(false);
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    std::thread sinkThread(&VideoSinkTest::run, &sinkTest, videoCfg.tunnelMode);
+    // rdk-halif-aidl 0.23.0: the sink reads the vendor-selected mode on the first decoded frame
+    std::thread sinkThread(&VideoSinkTest::run, &sinkTest);
 
     if (sinkThread.joinable())
       sinkThread.join();
@@ -1112,7 +1114,6 @@ void runVideoClockTest(std::shared_ptr<AVClockPrimeTest> clockTest,
                                  videoSinkControlListener,
                                  videoSinkEventListener,
                                  isSecure,
-                                 isTunnel,
                                  sinkTestConfig,
                                  sinkTestConfig};
 
@@ -1143,7 +1144,6 @@ void runVideoClockTest(std::shared_ptr<AVClockPrimeTest> clockTest,
                                videoSinkControlListener,
                                videoSinkEventListener,
                                isSecure,
-                               isTunnel,
                                sinkTestConfig,
                                sinkTestConfig};
 
@@ -1353,9 +1353,6 @@ void runVideoPrimeTest(std::shared_ptr<AVClockPrimeTest> clockTest,
   if (isSecureMode && !isVideoSecureModeSupported(clockIndex)) {
     UT_IGNORE_TEST() << "Skipping video prime case: AVClock instance " << clockIndex
                  << " does not support secure video decoding";
-  }
-  if (isTunnel && !isAVClockTunnelModeSupported()) {
-    UT_IGNORE_TEST() << "Platform does not support video tunnel mode";
   }
 
   vector<videoDecoderTestConfiguration_t> sinkConfigs;
