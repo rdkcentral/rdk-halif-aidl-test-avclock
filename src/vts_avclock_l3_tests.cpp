@@ -1334,6 +1334,8 @@ void runVideoPrimeTest(std::shared_ptr<AVClockPrimeTest> clockTest,
   const size_t clockIndex = static_cast<size_t>(clockTest->getClockId());
 
   if (isSecureMode && !isVideoSecureModeSupported(clockIndex)) {
+    // Withdraw from the start barrier first: UT_IGNORE_TEST() (GTEST_SKIP) returns immediately
+    phaseSynchronizer->drop(threadtype::video);
     UT_IGNORE_TEST() << "Skipping video prime case: AVClock instance " << clockIndex
                  << " does not support secure video decoding";
   }
@@ -1382,11 +1384,10 @@ void runPcrPrimeTest(std::shared_ptr<AVClockPrimeTest> clockTest, bool isSecureM
 
   if (isSecureMode && (!isAudioSecureModeSupported(clockIndex) ||
                        !isVideoSecureModeSupported(clockIndex))) {
+    // Withdraw from the start barrier first: UT_IGNORE_TEST() (GTEST_SKIP) returns immediately
+    phaseSynchronizer->drop(threadtype::pcr);
     UT_IGNORE_TEST() << "Skipping PCR prime case: AVClock instance " << clockIndex
                  << " does not support secure audio and video decoding";
-    // Withdraw from the start barrier so the audio/video participants are not left waiting
-    phaseSynchronizer->drop(threadtype::pcr);
-    return;
   }
   // rdk-halif-aidl 0.23.0: the operational mode is vendor-selected and not declared in the HFP,
   // so tunnel PCR cases are not gated on a platform capability any more.
