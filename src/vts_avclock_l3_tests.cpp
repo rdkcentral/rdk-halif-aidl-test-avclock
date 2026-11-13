@@ -184,6 +184,9 @@ public:
     }
 
     mAVbufferHelper = getAVBufferHelperInstance();
+    if (mAVbufferHelper == nullptr) {
+      UT_FAIL_FATAL("AVBuffer Helper not available");
+    }
 
     /* Get the AVClock IDs */
     AVCLOCK_MANAGER_GETAVCLOCKIDS(avClockIds);
@@ -715,16 +718,15 @@ void AVClockPrimeTest::runVideoTest(const VideoConfig& videoCfg,
         videoCfg.decId, videoCfg.decHandle, videoCfg.decCtrlListener,
         videoCfg.decEventListener, mBufferManager, videoCfg.secureDecode,
         videoCfg.decTestConfig, mBufferHelper, isVideoSinkAttached);
-    std::thread decodeThread(&videoDecoderTest::run, &decodeTest, true);
+    std::thread decodeThread(&videoDecoderTest::run, &decodeTest);
 
     UT_LOG_INFO("VideoSink Thread about to start");
     VideoSinkTest sinkTest(videoCfg.sinkId, videoCfg.sinkHandle, videoCfg.decHandle,
                  videoCfg.sinkCtrlListener,
                  videoCfg.sinkEventListener,
                  videoCfg.decCtrlListener, mBufferManager,
-                 videoCfg.decId, mClockId, videoCfg.sinkTestConfig, isClockInUse);
-    // rdk-halif-aidl 0.23.0: no video plane is mapped, so no first frame rendered is expected
-    sinkTest.setFirstFrameRenderedExpected(false);
+                 videoCfg.decId, mClockId, videoCfg.sinkTestConfig, isClockInUse,
+                 false /* isPlaneMapped: no video plane mapped, so no first frame rendered (rdk-halif-aidl 0.23.0) */);
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     // rdk-halif-aidl 0.23.0: the sink reads the vendor-selected mode on the first decoded frame
     std::thread sinkThread(&VideoSinkTest::run, &sinkTest);
