@@ -164,7 +164,6 @@ struct VideoConfig {
     sp<VideoSinkControllerListener> sinkCtrlListener;
     sp<VideoSinkEventListener> sinkEventListener;
     bool secureDecode;
-    bool tunnelMode;
     videoDecoderTestConfiguration_t decTestConfig;
     videoDecoderTestConfiguration_t sinkTestConfig;
 };
