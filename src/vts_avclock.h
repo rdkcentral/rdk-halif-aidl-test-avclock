@@ -149,7 +149,6 @@ struct AudioConfig {
     sp<AudioSinkControllerListener> sinkCtrlListener;
     sp<AudioSinkEventListener> sinkEventListener;
     bool secureDecode;
-    bool tunnelMode;
     testConfiguration_t testConfig;
 };
 
@@ -1061,22 +1060,14 @@ public:
         return mClockController;
     }
 
-    void setAudioProperties(
-    const sp<AudioDecoderControllerListener>& listener,
-    bool tunnelMode)
+    void setAudioProperties(const sp<AudioDecoderControllerListener>& listener)
     {
         mDecCtrlListener = listener;
-        mAudioTunnelMode = tunnelMode;
     }
 
     sp<AudioDecoderControllerListener>& getDecCtrlListener()
     {
         return mDecCtrlListener;
-    }
-
-    bool getTunnelMode() const
-    {
-        return mAudioTunnelMode;
     }
 
     void validateClockTime(std::shared_ptr<AVClockPrimeTest>& clockTest, sp<IAVClock> clockHandle, sp<IAVClockController>& avClockController, double playbackrate, contentprimetype primetype, sp<AVClockControllerListener>& clockControlListener, threadtype threadType);
@@ -1092,7 +1083,6 @@ private:
     void validateUnprimedClock(sp<IAVClockController>& avClockController,
                                threadtype streamType);
      sp<AudioDecoderControllerListener> mDecCtrlListener;
-     bool mAudioTunnelMode = false;
 
     // Common members
     IAVClock::Id mClockId;
