@@ -660,7 +660,8 @@ void AVClockPrimeTest::runAudioTest(const AudioConfig& audioCfg,
 
     bool isAudioSinkAttached = (audioCfg.sinkHandle != nullptr);
     bool isClockInUse = true;
-    bool isMixerConnected = true;
+    /* No AudioMixer is connected in the AVClock suite, so no audio first-frame callbacks are expected (0.23.0) */
+    bool isMixerConnected = false;
 
     UT_LOG_INFO("AudioDecoder Thread about to start");
     AudioDecoderTest decodeTest(
@@ -1280,6 +1281,8 @@ void runAudioPrimeTest(std::shared_ptr<AVClockPrimeTest> clockTest,
   const size_t clockIndex = static_cast<size_t>(clockTest->getClockId());
 
   if (isSecureMode && !isAudioSecureModeSupported(clockIndex)) {
+    // Withdraw from the start barrier first: UT_IGNORE_TEST() (GTEST_SKIP) returns immediately
+    phaseSynchronizer->drop(threadtype::audio);
     UT_IGNORE_TEST() << "Skipping audio prime case: AVClock instance " << clockIndex
                  << " does not support secure audio decoding";
     return;
@@ -3379,7 +3382,7 @@ UT_ADD_TEST(VTS_L3_AVClock, con_sec_AutoSetAudioPlayRateFastForward) {
   const char *testName = "PrimeClock_AutoSetAudioPlayRateFastForward";
   bool isSecureMode = true;
   bool isConcurrentMode = true;
-  double playbackrate = 1.0;
+  double playbackrate = 2.0;
   avclock::ClockMode clockMode = avclock::ClockMode::AUTO;
   contentprimetype primetype = primeaudio;
 
