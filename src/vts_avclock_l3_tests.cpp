@@ -2604,36 +2604,6 @@ UT_ADD_TEST(VTS_L3_AVClock, seq_sec_AutoSetVideoPlayRateFastForward) {
                       clockMode, primetype, playbackrate);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /**
  * @brief Test the AVClock functionality (concurrent, non-secure)
  *
