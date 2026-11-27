@@ -124,51 +124,10 @@ namespace audiodecoder {
 }
 }
 
-enum contentprimetype {
-    primeaudio,
-    primevideo,
-    primeaudiobeforevideo,
-    primevideobeforeaudio,
-    primepcr
-};
-
 enum threadtype {
     audio,
     video,
     pcr
-};
-
-struct AudioConfig {
-    IAudioDecoder::Id decId;
-    sp<IAudioDecoder> decHandle;
-    sp<AudioDecoderControllerListener> decCtrlListener;
-    sp<AudioDecoderEventListener> decEventListener;
-    audiodecoder::Capabilities *decCaps;
-    com::rdk::hal::audiosink::IAudioSink::Id sinkId;
-    sp<com::rdk::hal::audiosink::IAudioSink> sinkHandle;
-    sp<AudioSinkControllerListener> sinkCtrlListener;
-    sp<AudioSinkEventListener> sinkEventListener;
-    bool secureDecode;
-    testConfiguration_t testConfig;
-};
-
-struct VideoConfig {
-    IVideoDecoder::Id decId;
-    sp<IVideoDecoder> decHandle;
-    sp<VideoDecoderControllerListener> decCtrlListener;
-    sp<VideoDecoderEventListener> decEventListener;
-    videodecoder::Capabilities *decCaps;
-    IVideoSink::Id sinkId;
-    sp<IVideoSink> sinkHandle;
-    sp<VideoSinkControllerListener> sinkCtrlListener;
-    sp<VideoSinkEventListener> sinkEventListener;
-    bool secureDecode;
-    videoDecoderTestConfiguration_t decTestConfig;
-    videoDecoderTestConfiguration_t sinkTestConfig;
-};
-
-struct PcrConfig {
-    int64_t pcrValue;
 };
 
 bool isClkSinkUsable(const com::rdk::hal::audiosink::IAudioSink::Id &maudioSinkId);
@@ -289,6 +248,13 @@ class AVClockControllerListener : public BnAVClockControllerListener {
             mPrimedEventCount = 0;
         }
 
+        /* Number of onPrimed() callbacks since the last resetPrimedEvent() (spec: exactly one per started session) */
+        size_t getPrimedEventCount()
+        {
+            std::lock_guard<std::mutex> lock(mOnPrimeMutex);
+            return mPrimedEventCount;
+        }
+
         bool waitForPrimedEvent(std::chrono::seconds timeout, threadtype streamType)
         {
             std::unique_lock<std::mutex> lock(mOnPrimeMutex);
@@ -335,38 +301,6 @@ class AVClockControllerListener : public BnAVClockControllerListener {
         ClockTime mPrimedClockTime;
         std::vector<std::pair< ::com::rdk::hal::avclock::State, ::com::rdk::hal::avclock::State>> mStateChanges;
     };
-
-class PrimePhaseSynchronizer {
-public:
-    PrimePhaseSynchronizer(sp<IAVClock> clockHandle,
-                           sp<IAVClockController> clockController,
-                           sp<AVClockControllerListener> controlListener,
-                           size_t participantCount);
-
-    void beginConfiguration(threadtype streamType, contentprimetype primetype);
-    void drop(threadtype streamType);
-    void finishConfiguration();
-
-private:
-    void arriveAtStart(bool isDropping, threadtype streamType);
-    bool isStreamActive(threadtype streamType);
-
-    sp<IAVClock> mClockHandle;
-    sp<IAVClockController> mClockController;
-    sp<AVClockControllerListener> mControlListener;
-    std::mutex mMutex;
-    std::condition_variable mCV;
-    size_t mParticipantCount;
-    size_t mStartArrivals = 0;
-    size_t mFinishArrivals = 0;
-    size_t mDrops = 0;
-    size_t mStartGeneration = 0;
-    size_t mFinishGeneration = 0;
-    bool mPhaseHasWork = false;
-    bool mAudioActive = true;
-    bool mVideoActive = true;
-    bool mPcrActive = true;
-};
 
 class AVClockEventListener : public BnAVClockEventListener {
     public:
@@ -1038,64 +972,6 @@ class AVClockEventListener : public BnAVClockEventListener {
         UT_ASSERT_TRUE(_aidl_return); \
         UT_ASSERT_EQUAL(status.exceptionCode(), Status::EX_NONE); \
     } while (0)
-
-class AVClockPrimeTest {
-public:
-    AVClockPrimeTest(IAVClock::Id clockId,
-                     sp<IAVClock> clockHandle,
-                     avclock::ClockMode clockMode,
-                     sp<AVClockControllerListener> clockController,
-                     sp<IAVBuffer> bufferManager,
-                     IAVBufferHelper* bufferHelper,
-                     double playbackRate)
-        : mClockId(clockId), mClockHandle(clockHandle), mClockMode(clockMode),
-          mClockController(clockController), mBufferManager(bufferManager),
-          mBufferHelper(bufferHelper), mPlaybackRate(playbackRate) {}
-
-    int32_t getClockId() const { return mClockId.value; }
-    sp<IAVClock> getClockHandle() const { return mClockHandle; }
-    double getPlaybackRate() const { return mPlaybackRate; }
-
-    sp<AVClockControllerListener> getControlListener() const {
-        return mClockController;
-    }
-
-    void setAudioProperties(const sp<AudioDecoderControllerListener>& listener)
-    {
-        mDecCtrlListener = listener;
-    }
-
-    sp<AudioDecoderControllerListener>& getDecCtrlListener()
-    {
-        return mDecCtrlListener;
-    }
-
-    void validateClockTime(std::shared_ptr<AVClockPrimeTest>& clockTest, sp<IAVClock> clockHandle, sp<IAVClockController>& avClockController, double playbackrate, contentprimetype primetype, sp<AVClockControllerListener>& clockControlListener, threadtype threadType);
-    void runAudioTest(const AudioConfig& audioCfg, sp<IAVClockController> &avClockController);
-    void runVideoTest(const VideoConfig& videoCfg, sp<IAVClockController> &avClockController);
-    void runPcrTest(const PcrConfig& pcrCfg, sp<IAVClockController> &avClockController);
-    android::sp<com::rdk::hal::avclock::IAVClockController> setupAndStartClock();
-    void shutdownClock(android::sp<com::rdk::hal::avclock::IAVClockController> clockcontroller);
-    int64_t getMonotonicRawTimestamp();
-    void setDecCtrlListener(const sp<AudioDecoderControllerListener>& listener);
-
-private:
-    void validateUnprimedClock(sp<IAVClockController>& avClockController,
-                               threadtype streamType);
-     sp<AudioDecoderControllerListener> mDecCtrlListener;
-
-    // Common members
-    IAVClock::Id mClockId;
-    sp<IAVClock> mClockHandle;
-    avclock::ClockMode mClockMode;
-    sp<AVClockControllerListener> mClockController;
-    sp<IAVBuffer> mBufferManager;
-    IAVBufferHelper* mBufferHelper;
-    double mPlaybackRate;
-    mutable std::mutex mMutex; // Protect shared state
-    mutable std::mutex mwaitEventMutex; // Protect shared state
-    std::condition_variable mWaitEventNotify;
-};
 
 #endif // __VTS_AVCLOCK_H__
 
